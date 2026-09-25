@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paluwagan Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F4F5F7; --surface:#FFFFFF; --soft:#F0F1F4; --line:#E7E9EE; --ink:#0F1115; --muted:#737887; --faint:#A3A8B5;
+  --accent:#0E7A6B; --accent-ink:#FFFFFF; --accent-soft:#E2F2EF; --gold:#E8B023;
+  --ok:#157A4A; --ok-soft:#E3F3EA; --warn:#9A6200; --warn-soft:#FCF1DA; --bad:#C0342B; --bad-soft:#FCE8E6;
+  --sel:#E8F3F1; --shadow:0 1px 2px rgba(15,17,21,.04),0 8px 24px rgba(15,17,21,.05); --pop:0 20px 60px rgba(15,17,21,.2);
+  --sans:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"Geist Mono",ui-monospace,"SF Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --bg:#0C0D10; --surface:#15171C; --soft:#1C1F26; --line:#262A33; --ink:#EDEFF3; --muted:#8E94A3; --faint:#5E6472;
+  --accent:#4FD1B9; --accent-ink:#06201B; --accent-soft:#12302B; --gold:#F0C04A;
+  --ok:#62D69A; --ok-soft:#14301F; --warn:#F2BE5C; --warn-soft:#342812; --bad:#F48A80; --bad-soft:#3A1B19;
+  --sel:#15302B; --shadow:0 1px 2px rgba(0,0,0,.3); --pop:0 20px 60px rgba(0,0,0,.6);
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0C0D10; --surface:#15171C; --soft:#1C1F26; --line:#262A33; --ink:#EDEFF3; --muted:#8E94A3; --faint:#5E6472;
+  --accent:#4FD1B9; --accent-ink:#06201B; --accent-soft:#12302B; --gold:#F0C04A;
+  --ok:#62D69A; --ok-soft:#14301F; --warn:#F2BE5C; --warn-soft:#342812; --bad:#F48A80; --bad-soft:#3A1B19;
+  --sel:#15302B; --shadow:0 1px 2px rgba(0,0,0,.3); --pop:0 20px 60px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:14.5px/1.5 var(--sans);padding-inline:16px;padding-block:28px 64px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
+.hero h2{overflow-wrap:anywhere}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.02em;text-wrap:balance}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.93em;letter-spacing:-.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.coin{width:30px;height:30px;border-radius:50%;background:var(--gold);display:grid;place-items:center;font:700 15px var(--sans);color:#3A2A00}
+.brand h1{font-size:18px}
+.tag{border:0;background:var(--warn-soft);color:var(--warn);font-size:12px;font-weight:500;padding:3px 10px;border-radius:99px;cursor:pointer}
+.groupsel{display:flex;gap:8px;align-items:center;min-width:0;max-width:100%}
+.groupsel select{flex:1 1 auto;min-width:0;width:220px}
+.hero>*{min-width:0;max-width:100%}
+.hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.hero h2{font-size:30px;line-height:1.1}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pill{font-size:12.5px;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:3px 10px;border-radius:99px}
+.pill b{color:var(--ink);font-weight:500}
+
+select,input[type=text],input[type=number],input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0;max-width:100%;height:36px}
+select:focus,input:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.btn{height:36px;border:1px solid transparent;background:var(--soft);border-radius:8px;padding:0 14px;cursor:pointer;font-weight:500;font-size:13.5px;white-space:nowrap;transition:background .15s,filter .15s}
+.btn:hover{background:var(--line)}
+.btn.primary{background:var(--ink);color:var(--surface)}
+.btn.primary:hover{filter:brightness(1.25);background:var(--ink)}
+.btn.accent{background:var(--accent);color:var(--accent-ink)}
+.btn.accent:hover{filter:brightness(1.08);background:var(--accent)}
+.btn.ghost{background:transparent;color:var(--muted)} .btn.ghost:hover{background:var(--soft);color:var(--ink)}
+.btn.danger{background:transparent;color:var(--bad)} .btn.danger:hover{background:var(--bad-soft)}
+
+/* tabs */
+.tabs{display:flex;gap:4px;overflow-x:auto;background:var(--soft);padding:4px;border-radius:12px;width:max-content;max-width:100%;scrollbar-width:none}
+.tab{border:0;background:none;padding:7px 14px;border-radius:8px;cursor:pointer;color:var(--muted);font-weight:500;font-size:13.5px;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected=true]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+
+.panel{display:grid;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;display:grid;gap:16px;align-content:start;min-width:0;box-shadow:var(--shadow)}
+.card h3{font-size:15px}
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 12px}
+.sub{color:var(--muted);font-size:13px}
+.split{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:16px}
+@media (max-width:840px){.split{grid-template-columns:1fr}}
+
+/* tables */
+.tbl{overflow-x:auto;margin-inline:-8px}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:14px}
+th{text-align:left;font-size:12px;color:var(--faint);font-weight:500;padding:0 10px 8px;white-space:nowrap}
+td{padding:10px;border-top:1px solid var(--line);white-space:nowrap}
+td.r,th.r{text-align:right}
+td.dim{color:var(--muted)}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--soft)}
+tbody tr[aria-selected=true] td{background:var(--sel)}
+tbody tr td:first-child{border-radius:8px 0 0 8px} tbody tr td:last-child{border-radius:0 8px 8px 0}
+tr.empty td{color:var(--faint);text-align:center;cursor:default;padding:36px 10px}
+tr.empty:hover td{background:none}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:2px 9px;border-radius:99px;background:var(--soft);color:var(--muted)}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8}
+.chip.ok{background:var(--ok-soft);color:var(--ok)} .chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)} .chip.info{background:var(--accent-soft);color:var(--accent)}
+.chip.open{background:var(--ink);color:var(--surface)} .chip.open::before{display:none}
+
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.actions .sp{flex:1}
+
+/* form */
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:grid;gap:5px;min-width:0}
+.field.full{grid-column:1/-1}
+.field label{font-size:12.5px;color:var(--muted)}
+.field input,.field select{width:100%}
+.divider{grid-column:1/-1;height:1px;background:var(--line);margin:4px 0}
+.addrow{display:flex;gap:8px;flex-wrap:wrap}
+.addrow input{flex:1 1 180px}
+
+/* meter */
+.meter{display:grid;gap:8px}
+.meter-top{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
+.big{font-size:24px;font-weight:600;letter-spacing:-.02em}
+.track{height:6px;border-radius:99px;background:var(--soft);overflow:hidden}
+.fill{height:100%;background:var(--accent);border-radius:99px;transition:width .4s ease}
+
+/* reports */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow);display:grid;gap:4px}
+.kpi .k{font-size:12.5px;color:var(--muted)}
+.kpi .v{font-size:22px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi.bad .v{color:var(--bad)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;margin:0;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;text-align:right}
+.turn{background:var(--accent-soft);border-radius:10px;padding:12px 14px;font-size:14px}
+.turn b{color:var(--accent);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.alerts li{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:14px;padding:9px 0;border-top:1px solid var(--line)}
+.alerts li:first-child{border-top:0}
+.alerts li .n{color:var(--muted)}
+.alerts li.high .n{color:var(--bad);font-weight:500}
+.alerts li.none{color:var(--muted)}
+
+/* modal + toast */
+.scrim{position:fixed;inset:0;background:rgba(8,10,14,.4);backdrop-filter:blur(3px);display:grid;place-items:center;padding:16px;z-index:10;animation:fade .15s}
+.modal{background:var(--surface);border-radius:18px;box-shadow:var(--pop);width:min(440px,100%);max-height:90vh;overflow:auto;padding:22px;display:grid;gap:16px;animation:rise .18s ease}
+.modal.wide{width:min(620px,100%)}
+.modal h3{font-size:18px}
+.modal p{margin:0 0 6px;color:var(--muted)} .modal p b{color:var(--ink)}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.modal textarea{width:100%;min-height:200px;font:12px/1.45 var(--mono);background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);opacity:0;pointer-events:none;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:10px;font-size:13.5px;box-shadow:var(--pop);transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);z-index:20}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast.err{background:var(--bad);color:var(--surface)}
+@keyframes fade{from{opacity:0}} @keyframes rise{from{opacity:0;transform:translateY(8px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:520px){.form{grid-template-columns:1fr}.hero h2{font-size:24px}.top{flex-direction:column;align-items:stretch}.card{padding:16px}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><div class="coin" aria-hidden="true">₱</div><h1>Paluwagan</h1>
+      <button class="tag" id="sampleTag" type="button" hidden>Sample data</button></div>
+    <div class="groupsel">
+      <select id="cboGroups" aria-label="Open group"></select>
+      <button class="btn" id="barNew" type="button">New group</button>
+      <button class="btn primary" id="barSave" type="button">Save</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div><h2 id="heroName"></h2><div class="meta" id="barTerms"></div></div>
+    <nav class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-tab="setup" type="button">Setup</button>
+      <button class="tab" role="tab" data-tab="contrib" type="button">Contributions</button>
+      <button class="tab" role="tab" data-tab="payouts" type="button">Payouts</button>
+      <button class="tab" role="tab" data-tab="order" type="button">Order</button>
+      <button class="tab" role="tab" data-tab="reports" type="button">Reports</button>
+      <button class="tab" role="tab" data-tab="groups" type="button">Groups</button>
+    </nav>
+  </section>
+
+  <section class="panel" id="p-setup" role="tabpanel">
+    <div class="split">
+      <div class="card">
+        <h3>Terms</h3>
+        <form class="form" id="termsForm" novalidate>
+          <div class="field full"><label for="tGroup">Group name</label><input type="text" id="tGroup"></div>
+          <div class="field"><label for="tOrg">Organizer</label><input type="text" id="tOrg"></div>
+          <div class="field"><label for="tAmount">Amount (PHP)</label><input type="number" id="tAmount" min="0" step="50"></div>
+          <div class="field"><label for="tFreq">Frequency</label><select id="tFreq"><option value="1">Weekly</option><option value="2">Every 15 days</option><option value="3">Monthly</option></select></div>
+          <div class="field"><label for="tStart">First due date</label><input type="date" id="tStart"></div>
+          <div class="divider"></div>
+          <div class="field"><label for="tGrace">Grace days</label><input type="number" id="tGrace" min="0" step="1"></div>
+          <div class="field"><label for="tFee">Late fee / day</label><input type="number" id="tFee" min="0" step="10"></div>
+          <div class="field"><label for="tCap">Max late fee</label><input type="number" id="tCap" min="0" step="50"></div>
+          <div class="field" style="align-self:end"><button class="btn primary" type="submit">Save terms</button></div>
+        </form>
+      </div>
+      <div class="card">
+        <h3>Members</h3>
+        <div class="tbl"><table><thead><tr><th>#</th><th>Name</th><th>Due</th><th class="r">Payout</th></tr></thead><tbody id="setupRows"></tbody></table></div>
+        <form class="addrow" id="addForm">
+          <input type="text" id="newMember" placeholder="Member name" aria-label="Member name">
+          <button class="btn accent" type="submit">Add</button>
+          <button class="btn danger" type="button" id="btnRemove">Remove</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-contrib" role="tabpanel" hidden>
+    <div class="card">
+      <div class="head"><select id="cboCycle" aria-label="Cycle"></select></div>
+      <div class="meter" id="contribMeter"></div>
+      <div class="tbl"><table><thead><tr><th>Name</th><th>Days late</th><th class="r">Late fee</th><th>Status</th></tr></thead><tbody id="contribRows"></tbody></table></div>
+      <div class="actions">
+        <input type="number" id="txtLate" value="0" min="0" step="1" style="width:76px" aria-label="Days late">
+        <button class="btn accent" id="btnPay" type="button">Record payment</button>
+        <button class="btn" id="btnUnpaid" type="button">Mark unpaid</button>
+        <span class="sp"></span>
+        <button class="btn ghost" id="btnAllPaid" type="button">All paid on time</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-payouts" role="tabpanel" hidden>
+    <div class="card">
+      <div class="head"><h3>Payouts</h3><span class="sub" id="paySum"></span></div>
+      <div class="tbl"><table><thead><tr><th>#</th><th>Due</th><th>Receiver</th><th class="r">Collected</th><th>Status</th></tr></thead><tbody id="payRows"></tbody></table></div>
+      <div class="actions">
+        <button class="btn accent" id="btnRelease" type="button">Release</button>
+        <button class="btn" id="btnUndoPay" type="button">Undo</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-order" role="tabpanel" hidden>
+    <div class="card">
+      <h3>Payout order</h3>
+      <div class="tbl"><table><thead><tr><th>#</th><th>Receiver</th><th>Due</th><th>Status</th></tr></thead><tbody id="orderRows"></tbody></table></div>
+      <div class="actions">
+        <button class="btn accent" id="btnDraw" type="button">Bunutan</button>
+        <button class="btn" id="btnLast" type="button">Move to last</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-reports" role="tabpanel" hidden>
+    <div class="kpis" id="kpis"></div>
+    <div class="split">
+      <div class="panel">
+        <div class="card"><div id="turn"></div><dl class="kv" id="summary"></dl></div>
+        <div class="card"><h3>Alerts</h3><ul class="alerts" id="alerts"></ul></div>
+      </div>
+      <div class="card">
+        <div class="head"><h3>Reliability</h3><button class="btn" id="btnStatement" type="button">Statement</button></div>
+        <div class="tbl"><table><thead><tr><th>Name</th><th class="r">On time</th><th class="r">Late</th><th class="r">Missed</th><th class="r">Score</th><th>Rating</th></tr></thead><tbody id="relRows"></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-groups" role="tabpanel" hidden>
+    <div class="card">
+      <div class="head"><h3>Groups</h3>
+        <div class="actions"><button class="btn ghost" id="btnExport" type="button">Export</button><button class="btn ghost" id="btnImport" type="button">Import</button></div></div>
+      <div class="tbl"><table><thead><tr><th>Group</th><th class="r">Members</th><th>Released</th><th class="r">Collected</th><th class="r">Paid out</th><th></th></tr></thead><tbody id="groupRows"></tbody></table></div>
+      <div class="actions">
+        <button class="btn accent" id="btnOpenG" type="button">Open</button>
+        <button class="btn" id="btnNewG" type="button">New group</button>
+        <button class="btn danger" id="btnDelG" type="button">Delete</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="modalRoot"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const STORE = "paluwagan_data_v1";
+const MAX_GROUPS = 20, MAX_MEMBERS = 100;
+
+/* ---------- formatting (UiFormat) ---------- */
+const peso = v => "PHP " + Number(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = v => Math.round(v) + "%";
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtDate = s => { const [y,m,d]=s.split("-").map(Number); return MON[m-1]+" "+d+(y!==new Date().getFullYear()?", "+y:""); };
+
+/* ---------- dates ---------- */
+function todayISO(){ const d=new Date(); return iso(new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()))); }
+function iso(d){ return d.toISOString().slice(0,10); }
+function parseISO(s){ if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null; const [y,m,d]=s.split("-").map(Number); const dt=new Date(Date.UTC(y,m-1,d)); return (dt.getUTCMonth()===m-1)?dt:null; }
+function plusDays(s,n){ const d=parseISO(s); d.setUTCDate(d.getUTCDate()+n); return iso(d); }
+function plusMonths(s,n){ const d=parseISO(s); const day=d.getUTCDate(); const t=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+n,1));
+  const last=new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)).getUTCDate(); t.setUTCDate(Math.min(day,last)); return iso(t); }
+
+/* ---------- model (Paluwagan and its parts) ---------- */
+function newGroup(name, amount){
+  return { name, organizer:"Not set", amount, freq:1, start:todayISO(), grace:3, feePerDay:100, maxFee:500, nextId:1, members:[], records:[] };
+}
+const freqLabel = g => g.freq===1?"Weekly":g.freq===2?"Semi-monthly (every 15 days)":"Monthly";
+const totalCycles = g => g.members.length;
+function dueDate(g,c){ const s=c-1; if(g.freq===1) return plusDays(g.start,7*s); if(g.freq===2) return plusDays(g.start,15*s); return plusMonths(g.start,s); }
+const cycleExists = (g,c) => c>=1 && c<=totalCycles(g);
+const isDue = (g,c) => cycleExists(g,c) && dueDate(g,c) <= todayISO();
+const countDue = g => { let n=0; for(let c=1;c<=totalCycles(g);c++) if(isDue(g,c)) n++; return n; };
+const receiver = (g,c) => g.members.find(m=>m.cycle===c) || null;
+const byId = (g,id) => g.members.find(m=>m.id===id) || null;
+const findRec = (g,id,c) => g.records.find(r=>r.memberId===id && r.cycle===c) || null;
+const hasPaid = (g,id,c) => { const r=findRec(g,id,c); return !!(r && r.paid); };
+function penalty(g,days){ const ch=days-g.grace; if(ch<=0) return 0; return Math.min(ch*g.feePerDay, g.maxFee); }
+function recordPayment(g,id,c,amount,days){
+  let r=findRec(g,id,c); if(!r){ r={memberId:id,cycle:c,amount,paid:false,daysLate:0,penalty:0}; g.records.push(r); }
+  r.paid=true; r.amount=amount; r.daysLate=days; r.penalty=penalty(g,days);
+}
+function cancelPayment(g,id,c){ const r=findRec(g,id,c); if(r){ r.paid=false; r.daysLate=0; r.penalty=0; } }
+const penaltyForCycle = (g,c) => g.records.filter(r=>r.cycle===c&&r.paid).reduce((a,r)=>a+r.penalty,0);
+const totalCollected = g => g.records.filter(r=>r.paid).reduce((a,r)=>a+r.amount,0);
+const totalPenalty = g => g.records.filter(r=>r.paid).reduce((a,r)=>a+r.penalty,0);
+const countPaid = (g,c) => g.members.filter(m=>hasPaid(g,m.id,c)).length;
+const collectedFor = (g,c) => countPaid(g,c)*g.amount;
+const fullPot = g => g.members.length*g.amount;
+const fullyPaid = (g,c) => g.members.length>0 && countPaid(g,c)===g.members.length;
+const isReleased = (g,c) => { const m=receiver(g,c); return !!(m && m.received); };
+const releasedCount = g => g.members.filter(m=>m.received).length;
+const totalPaidOut = g => g.members.filter(m=>m.received).reduce((a,m)=>a+m.amountReceived,0);
+function currentCycle(g){ for(let c=1;c<=totalCycles(g);c++) if(!isReleased(g,c)) return c; return 0; }
+function releasePayout(g,c){ const m=receiver(g,c); if(m){ m.received=true; m.amountReceived=collectedFor(g,c); } }
+function cancelPayout(g,c){ const m=receiver(g,c); if(m){ m.received=false; m.amountReceived=0; } }
+function drawOrder(g){
+  if(releasedCount(g)>0) return false;
+  const n=g.members.length, order=[...Array(n)].map((_,i)=>i+1);
+  for(let i=n-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+  g.members.forEach((m,i)=>m.cycle=order[i]); return true;
+}
+function moveToLast(g,id){
+  const t=byId(g,id); if(!t||t.received) return false;
+  const n=g.members.length, old=t.cycle; if(old===n) return true;
+  g.members.forEach(m=>{ if(m.cycle>old) m.cycle--; }); t.cycle=n; return true;
+}
+function enroll(g,name){ if(g.members.length>=MAX_MEMBERS) return false; g.members.push({id:g.nextId++,name,cycle:g.members.length+1,received:false,amountReceived:0}); return true; }
+function withdraw(g,id){
+  const t=byId(g,id); if(!t||t.received) return false;
+  const freed=t.cycle; g.members=g.members.filter(m=>m.id!==id);
+  g.members.forEach(m=>{ if(m.cycle>freed) m.cycle--; });
+  const limit=g.members.length; g.records=g.records.filter(r=>r.memberId!==id && r.cycle<=limit); return true;
+}
+/* RiskAnalyzer + MemberStats */
+function unpaidDue(g,id){ let n=0; for(let c=1;c<=totalCycles(g);c++) if(isDue(g,c)&&!hasPaid(g,id,c)) n++; return n; }
+const exposure = g => g.members.filter(m=>m.received).reduce((a,m)=>a+unpaidDue(g,m.id)*g.amount,0);
+function stats(g,id){
+  const m=byId(g,id); if(!m) return null;
+  let onTime=0,late=0,paidIn=0,pen=0;
+  for(let c=1;c<=totalCycles(g);c++){ const r=findRec(g,id,c); if(r&&r.paid){ paidIn+=r.amount; pen+=r.penalty; if(r.daysLate>g.grace) late++; else onTime++; } }
+  const due=countDue(g), missed=unpaidDue(g,id);
+  const rel = due===0?100:onTime*100/due;
+  let rating = due===0?"No data yet":rel>=95?"Excellent":rel>=80?"Good":rel>=60?"Fair":"At Risk";
+  let note="OK", level="";
+  if(m.received&&missed>0){ note="HIGH RISK – received pot, owes "+missed+" cycle(s)"; level="high"; }
+  else if(missed>=2) note="WATCH – "+missed+" missed cycle(s)";
+  else if(missed===1) note="1 missed cycle";
+  else if(late>0) note=late+" late payment(s)";
+  return {id,name:m.name,cycle:m.cycle,received:m.received,onTime,late,missed,paidCount:onTime+late,paidIn,pen,got:m.amountReceived,rel,rating,note,level,net:m.amountReceived-paidIn};
+}
+
+/* ---------- book (GroupList) + storage ---------- */
+let book;
+function defaultBook(){ return {groups:[newGroup("My Paluwagan",1000)],active:0,sample:false}; }
+function sampleBook(){
+  const T=todayISO();
+  const g=newGroup("Barkada sa Opisina",1000); g.organizer="Lira"; g.freq=1; g.start=plusDays(T,-28);
+  ["Ana Reyes","Ben Santos","Carlo Dizon","Dina Cruz","Eli Mendoza","Faye Villanueva","Gino Ramos","Hazel Tan"].forEach(n=>enroll(g,n));
+  const late={"3-2":5,"3-3":9,"4-3":2,"6-4":1,"7-2":4};
+  for(let c=1;c<=5;c++) g.members.forEach(m=>{
+    if(m.id===3&&c>=4) return; if(c===5&&[6,8].includes(m.id)) return;
+    recordPayment(g,m.id,c,g.amount,late[m.id+"-"+c]||0);
+  });
+  releasePayout(g,1); releasePayout(g,2); releasePayout(g,3);
+  const h=newGroup("Pamilya Monthly",2500); h.organizer="Tita Rose"; h.freq=3; h.start=plusDays(T,6); h.grace=5; h.feePerDay=50; h.maxFee=300;
+  ["Rosa","Mario","Lorna","Jun","Cecil"].forEach(n=>enroll(h,n));
+  return {groups:[g,h],active:0,sample:true};
+}
+function load(){ try{ const s=localStorage.getItem(STORE); if(s){ const b=JSON.parse(s); if(b&&Array.isArray(b.groups)&&b.groups.length) return b; } }catch(e){} return sampleBook(); }
+function persist(){ try{ localStorage.setItem(STORE,JSON.stringify(book)); return true; }catch(e){ return false; } }
+const active = () => book.groups[book.active];
+
+/* DataStore text format, same as paluwagan_data.txt */
+const dbl = v => Number.isInteger(v)? v+".0" : String(v);
+function exportText(){
+  const L=["PALUWAGAN-DATA 1", String(book.groups.length)];
+  book.groups.forEach(g=>{
+    L.push(g.name,g.organizer,dbl(g.amount),String(g.freq),g.start,String(g.grace),dbl(g.feePerDay),dbl(g.maxFee),String(g.nextId),String(g.members.length));
+    g.members.forEach(m=>L.push(String(m.id),m.name,String(m.cycle),m.received?"1":"0",dbl(m.amountReceived)));
+    L.push(String(g.records.length));
+    g.records.forEach(r=>L.push(String(r.memberId),String(r.cycle),dbl(r.amount),r.paid?"1":"0",String(r.daysLate),dbl(r.penalty)));
+  });
+  L.push(String(book.active)); return L.join("\n")+"\n";
+}
+function importText(text){
+  const L=text.replace(/\r/g,"").split("\n"); let i=0;
+  const next=()=>{ if(i>=L.length) throw new Error("the file ends too early"); return L[i++]; };
+  const int=()=>{ const v=parseInt(next().trim(),10); if(isNaN(v)) throw new Error("expected a whole number on line "+i); return v; };
+  const num=()=>{ const v=parseFloat(next().trim()); if(isNaN(v)) throw new Error("expected a number on line "+i); return v; };
+  if(!next().startsWith("PALUWAGAN-DATA")) throw new Error("that is not a paluwagan records file");
+  const count=int(), groups=[];
+  for(let k=0;k<count;k++){
+    const g=newGroup(next(),0); g.organizer=next(); g.amount=num(); g.freq=int(); g.start=next().trim();
+    if(!parseISO(g.start)) throw new Error("bad start date on line "+i);
+    g.grace=int(); g.feePerDay=num(); g.maxFee=num(); const nextId=int();
+    const mc=int(); for(let j=0;j<mc;j++){ const id=int(), name=next(), cycle=int(), rec=next().trim()==="1", amt=num(); g.members.push({id,name,cycle,received:rec,amountReceived:amt}); }
+    g.nextId=nextId;
+    const rc=int(); for(let j=0;j<rc;j++){ g.records.push({memberId:int(),cycle:int(),amount:num(),paid:next().trim()==="1",daysLate:int(),penalty:num()}); }
+    groups.push(g);
+  }
+  if(!groups.length) throw new Error("the file holds no groups");
+  let act=0; if(i<L.length && L[i].trim()) act=parseInt(L[i].trim(),10)||0;
+  return {groups:groups.slice(0,MAX_GROUPS),active:Math.min(Math.max(act,0),groups.length-1),sample:false};
+}
+
+/* ---------- UI helpers ---------- */
+const sel = {setup:-1,contrib:-1,payouts:-1,order:-1,reports:-1,groups:-1};
+let currentTab = "setup", contribCycle = 1;
+let toastT; function toast(text,err){ const t=$("toast"); if(!text) return; t.textContent=text; t.classList.toggle("err",!!err); t.classList.add("on"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on"),3200); }
+function setStatus(tab,text,err){ toast(text,err); }
+function changed(){ persist(); }
+function chip(text,kind){ return `<span class="chip ${kind||""}">${esc(text)}</span>`; }
+
+function bindTable(tbodyId, tab){
+  const tb=$(tbodyId);
+  const pick = tr => { if(!tr||tr.classList.contains("empty")) return; sel[tab]=+tr.dataset.i; [...tb.rows].forEach(r=>r.setAttribute("aria-selected", r===tr?"true":"false")); };
+  tb.addEventListener("click", e=>pick(e.target.closest("tr")));
+  tb.addEventListener("keydown", e=>{
+    const tr=e.target.closest("tr"); if(!tr) return;
+    if(e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(tr); }
+    if(e.key==="ArrowDown"&&tr.nextElementSibling){ e.preventDefault(); tr.nextElementSibling.focus(); pick(tr.nextElementSibling); }
+    if(e.key==="ArrowUp"&&tr.previousElementSibling){ e.preventDefault(); tr.previousElementSibling.focus(); pick(tr.previousElementSibling); }
+  });
+}
+function fillRows(tbodyId, tab, rows, cols, emptyText){
+  const tb=$(tbodyId);
+  if(!rows.length){ tb.innerHTML=`<tr class="empty"><td colspan="${cols}">${esc(emptyText)}</td></tr>`; sel[tab]=-1; return; }
+  if(sel[tab]>=rows.length) sel[tab]=-1;
+  tb.innerHTML=rows.map((cells,i)=>`<tr tabindex="0" data-i="${i}" aria-selected="${i===sel[tab]}">${cells}</tr>`).join("");
+}
+
+/* modal: confirm / form / info — the page's own dialogs */
+function modal({title, body, ok="OK", cancel="Cancel", wide=false, onOpen}){
+  return new Promise(resolve=>{
+    const root=$("modalRoot"), prev=document.activeElement;
+    root.innerHTML=`<div class="scrim"><div class="modal ${wide?"wide":""}" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+      <h3 id="mTitle">${esc(title)}</h3><div>${body}</div>
+      <div class="foot">${cancel?`<button class="btn" type="button" data-a="no">${esc(cancel)}</button>`:""}<button class="btn primary" type="button" data-a="yes">${esc(ok)}</button></div></div></div>`;
+    const scrim=root.firstChild, box=scrim.firstChild;
+    const close=v=>{ const data=v?collect(box):null; root.innerHTML=""; document.removeEventListener("keydown",key); if(prev&&prev.focus) prev.focus(); resolve(v?(data||true):false); };
+    const key=e=>{ if(e.key==="Escape") close(false); if(e.key==="Enter"&&e.target.tagName==="INPUT") { e.preventDefault(); close(true); } };
+    document.addEventListener("keydown",key);
+    scrim.addEventListener("click",e=>{ if(e.target===scrim) close(false); const a=e.target.closest("[data-a]"); if(a) close(a.dataset.a==="yes"); });
+    if(onOpen) onOpen(box);
+    (box.querySelector("input,textarea")||box.querySelector("[data-a=yes]")).focus();
+  });
+}
+function collect(box){ const f=box.querySelectorAll("[data-f]"); if(!f.length) return null; const o={}; f.forEach(el=>o[el.dataset.f]=el.value); return o; }
+
+/* ---------- group bar ---------- */
+function refreshBar(){
+  $("cboGroups").innerHTML=book.groups.map((g,i)=>`<option value="${i}">${esc(g.name)}</option>`).join("");
+  $("cboGroups").value=String(book.active);
+  const g=active();
+  $("heroName").textContent=g.name;
+  $("barTerms").innerHTML=`<span class="pill"><b>${peso(g.amount)}</b> · ${esc(g.freq===2?"Every 15 days":freqLabel(g))}</span><span class="pill"><b>${g.members.length}</b> members</span><span class="pill">Organizer <b>${esc(g.organizer)}</b></span>`;
+  $("sampleTag").hidden=!book.sample;
+}
+function barMsg(t){ toast(t); }
+
+/* ---------- Setup ---------- */
+function refreshSetup(){
+  const g=active();
+  $("tGroup").value=g.name; $("tOrg").value=g.organizer; $("tAmount").value=g.amount; $("tFreq").value=String(g.freq);
+  $("tStart").value=g.start; $("tGrace").value=g.grace; $("tFee").value=g.feePerDay; $("tCap").value=g.maxFee;
+  const rows=[]; for(let c=1;c<=totalCycles(g);c++){ const m=receiver(g,c); if(!m) continue;
+    rows.push(`<td class="num dim">${c}</td><td>${esc(m.name)}</td><td class="num dim">${fmtDate(dueDate(g,c))}</td><td class="r">${m.received?`<span class="num">${peso(m.amountReceived)}</span>`:chip("Waiting")}</td>`); }
+  sel.setup=-1; fillRows("setupRows","setup",rows,4,"No members yet");
+}
+$("termsForm").addEventListener("submit",e=>{
+  e.preventDefault(); const g=active();
+  const name=$("tGroup").value.trim(); if(!name) return setStatus("setup","The group name cannot be empty.",true);
+  const amount=parseFloat($("tAmount").value), grace=Number($("tGrace").value), fee=parseFloat($("tFee").value), cap=parseFloat($("tCap").value), start=$("tStart").value;
+  if([amount,fee,cap].some(isNaN)||!Number.isInteger(grace)||!parseISO(start)) return setStatus("setup","Check the numbers and the date. Grace days must be a whole number.",true);
+  if(amount<0||grace<0||fee<0||cap<0) return setStatus("setup","Amounts and days cannot be negative.",true);
+  Object.assign(g,{name,organizer:$("tOrg").value.trim(),amount,grace,feePerDay:fee,maxFee:cap,freq:+$("tFreq").value,start});
+  changed(); refreshSetup(); refreshBar(); setStatus("setup","Terms saved. Due dates recomputed.");
+});
+$("addForm").addEventListener("submit",e=>{
+  e.preventDefault(); const name=$("newMember").value.trim();
+  if(!name) return setStatus("setup","Type a member name first.",true);
+  if(!enroll(active(),name)) return setStatus("setup","The group is already full.",true);
+  $("newMember").value=""; changed(); refreshSetup(); refreshBar();
+  setStatus("setup","Added "+name+". The group now runs for "+totalCycles(active())+" cycle(s).");
+});
+$("btnRemove").addEventListener("click",async()=>{
+  const g=active(); if(sel.setup<0) return setStatus("setup","Select a member first",true);
+  const m=receiver(g,sel.setup+1); if(!m) return;
+  if(!await modal({title:"Remove member",body:`<p>Remove <b>${esc(m.name)}</b> and all of their contribution records?</p>`,ok:"Remove"})) return;
+  if(withdraw(g,m.id)){ changed(); refreshSetup(); refreshBar(); setStatus("setup",m.name+" removed. The payout order moved up."); }
+  else setStatus("setup","A member who already received the pot cannot be removed.",true);
+});
+
+/* ---------- Contributions ---------- */
+function refreshContrib(){
+  const g=active(), n=totalCycles(g);
+  if(contribCycle>n) contribCycle=n>0?1:0; if(contribCycle<1&&n>0) contribCycle=1;
+  $("cboCycle").innerHTML=[...Array(n)].map((_,i)=>`<option value="${i+1}">Cycle ${i+1} · ${fmtDate(dueDate(g,i+1))}</option>`).join("");
+  if(n) $("cboCycle").value=String(contribCycle);
+  loadCycle();
+}
+function loadCycle(keepSel){
+  const g=active(), c=contribCycle;
+  if(!keepSel) sel.contrib=-1;
+  if(c<1){ fillRows("contribRows","contrib",[],4,"Add members in Setup first"); $("contribMeter").innerHTML=""; return; }
+  const due=isDue(g,c);
+  const rows=g.members.map(m=>{
+    const r=findRec(g,m.id,c); let st, late="–", fee="–";
+    if(r&&r.paid){ st=chip("Paid","ok"); late=r.daysLate?r.daysLate+"d":"–"; fee=r.penalty>0?peso(r.penalty):"–"; }
+    else st=due?chip("Overdue","bad"):chip("Not yet due");
+    return `<td>${esc(m.name)}</td><td class="num dim">${late}</td><td class="r num">${fee}</td><td>${st}</td>`;
+  });
+  fillRows("contribRows","contrib",rows,4,"No members yet");
+  const got=collectedFor(g,c), pot=fullPot(g), w=pot?Math.round(got/pot*100):0;
+  const pf=penaltyForCycle(g,c);
+  $("contribMeter").innerHTML=`<div class="meter-top"><span><span class="big">${peso(got)}</span> <span class="sub">of ${peso(pot)}</span></span><span class="sub">${countPaid(g,c)}/${g.members.length} paid${pf?" · "+peso(pf)+" late fees":""}</span></div><div class="track" role="progressbar" aria-valuenow="${w}" aria-valuemin="0" aria-valuemax="100" aria-label="Collected this cycle"><div class="fill" style="width:${w}%"></div></div>`;
+}
+$("cboCycle").addEventListener("change",()=>{ contribCycle=+$("cboCycle").value; loadCycle(); });
+$("btnPay").addEventListener("click",()=>{
+  const g=active(); if(sel.contrib<0) return setStatus("contrib","Select a member first",true);
+  const raw=$("txtLate").value.trim(); if(!/^-?\d+$/.test(raw)) return setStatus("contrib","Days late must be a whole number.",true);
+  const late=parseInt(raw,10); if(late<0) return setStatus("contrib","Days late cannot be negative.",true);
+  const m=g.members[sel.contrib]; recordPayment(g,m.id,contribCycle,g.amount,late); changed(); loadCycle(true);
+  const pen=penalty(g,late);
+  if(pen>0) setStatus("contrib",`${m.name} paid. Late fee ${peso(pen)} for ${late} day(s) past the ${g.grace}-day grace period.`);
+  else if(late>0) setStatus("contrib",m.name+" paid within the grace period. No late fee.");
+  else setStatus("contrib",m.name+" paid on time.");
+});
+$("btnUnpaid").addEventListener("click",()=>{
+  const g=active(); if(sel.contrib<0) return setStatus("contrib","Select a member first",true);
+  const m=g.members[sel.contrib]; cancelPayment(g,m.id,contribCycle); changed(); loadCycle(true);
+  setStatus("contrib",m.name+" marked unpaid for cycle "+contribCycle+".");
+});
+$("btnAllPaid").addEventListener("click",()=>{
+  const g=active(); if(contribCycle<1) return;
+  g.members.forEach(m=>recordPayment(g,m.id,contribCycle,g.amount,0)); changed(); loadCycle();
+  setStatus("contrib","All members marked paid on time for cycle "+contribCycle+".");
+});
+
+/* ---------- Payouts ---------- */
+function refreshPayouts(){
+  const g=active(), n=totalCycles(g), rows=[];
+  for(let c=1;c<=n;c++){
+    const m=receiver(g,c); let st;
+    if(isReleased(g,c)) st=chip("Released","ok"); else if(fullyPaid(g,c)) st=chip("Ready","info");
+    else if(isDue(g,c)) st=chip("Collecting","warn"); else st=chip("Upcoming");
+    rows.push(`<td class="num dim">${c}</td><td class="num dim">${fmtDate(dueDate(g,c))}</td><td>${m?esc(m.name):"–"}</td><td class="r num">${peso(collectedFor(g,c))}</td><td>${st}</td>`);
+  }
+  fillRows("payRows","payouts",rows,5,"No cycles yet");
+  $("paySum").textContent=`${releasedCount(g)}/${n} released · ${peso(totalPaidOut(g))} paid out`;
+}
+$("btnRelease").addEventListener("click",async()=>{
+  const g=active(); if(sel.payouts<0) return setStatus("payouts","Select a cycle first",true);
+  const c=sel.payouts+1; if(isReleased(g,c)) return setStatus("payouts","That payout was already released.",true);
+  if(!fullyPaid(g,c)){
+    const ok=await modal({title:"Incomplete collection",body:`<p>Only <b>${countPaid(g,c)} of ${g.members.length}</b> have paid for cycle ${c}.</p><p>Release only what was collected (<span class="num">${peso(collectedFor(g,c))}</span>)?</p>`,ok:"Release anyway"});
+    if(!ok) return setStatus("payouts","Cancelled.");
+  }
+  releasePayout(g,c); changed(); const m=receiver(g,c); refreshPayouts();
+  setStatus("payouts",`Released ${peso(m.amountReceived)} to ${m.name} for cycle ${c}.`);
+});
+$("btnUndoPay").addEventListener("click",()=>{
+  const g=active(); if(sel.payouts<0) return setStatus("payouts","Select a cycle first",true);
+  const c=sel.payouts+1; cancelPayout(g,c); changed(); refreshPayouts();
+  setStatus("payouts","Payout for cycle "+c+" is pending again.");
+});
+
+/* ---------- Payout order ---------- */
+function refreshOrder(){
+  const g=active(), rows=[];
+  for(let c=1;c<=totalCycles(g);c++){ const m=receiver(g,c);
+    rows.push(`<td class="num dim">${c}</td><td>${m?esc(m.name):"–"}</td><td class="num dim">${fmtDate(dueDate(g,c))}</td><td>${isReleased(g,c)?chip("Released","ok"):chip("Pending")}</td>`); }
+  fillRows("orderRows","order",rows,4,"No members yet");
+}
+$("btnDraw").addEventListener("click",async()=>{
+  if(!await modal({title:"Bunutan",body:"<p>Shuffle the payout order at random, the way a group draws lots?</p>",ok:"Draw lots"})) return setStatus("order","Cancelled.");
+  if(drawOrder(active())){ changed(); sel.order=-1; refreshOrder(); setStatus("order","Bunutan done. The payout order was drawn again."); }
+  else setStatus("order","Cannot draw – a payout has already been released.",true);
+});
+$("btnLast").addEventListener("click",()=>{
+  const g=active(); if(sel.order<0) return setStatus("order","Select a member first",true);
+  const m=receiver(g,sel.order+1); if(!m) return setStatus("order","That cycle has no receiver.",true);
+  if(moveToLast(g,m.id)){ changed(); sel.order=m.cycle-1; refreshOrder(); setStatus("order",`${m.name} moved to cycle ${m.cycle}. The members behind them moved up by one.`); }
+  else setStatus("order","A member who already received the pot cannot be moved.",true);
+});
+
+/* ---------- Reports ---------- */
+function refreshReports(){
+  const g=active(), n=g.members.length, cyc=totalCycles(g), cur=currentCycle(g), exp=exposure(g);
+  $("kpis").innerHTML=[
+    ["Pot per cycle",peso(fullPot(g))],["Collected",peso(totalCollected(g))],
+    ["Paid out",peso(totalPaidOut(g))],["Money at risk",peso(exp),exp>0?"bad":""]
+  ].map(([k,v,c])=>`<div class="kpi ${c||""}"><div class="k">${k}</div><div class="v num">${v}</div></div>`).join("");
+  let turn;
+  if(n===0) turn="No members yet.";
+  else if(cur===0) turn="All payouts released. Paluwagan complete.";
+  else turn=`<b>${esc(receiver(g,cur).name)}</b>'s turn · cycle ${cur}, due ${fmtDate(dueDate(g,cur))}`;
+  $("turn").innerHTML=`<div class="turn">${turn}</div>`;
+  $("summary").innerHTML=[
+    ["Started",fmtDate(g.start)],["Cycles due",countDue(g)+" of "+cyc],
+    ["Payouts released",releasedCount(g)+" of "+cyc],["Late fees",peso(totalPenalty(g))]
+  ].map(([k,v])=>`<dt>${k}</dt><dd class="num">${v}</dd>`).join("");
+  const all=g.members.map(m=>stats(g,m.id));
+  const bad=all.filter(s=>s.note!=="OK");
+  $("alerts").innerHTML = bad.length ? bad.map(s=>`<li class="${s.level}"><span>${esc(s.name)}</span><span class="n">${esc(s.note)}</span></li>`).join("")
+    : `<li class="none">Everyone is up to date</li>`;
+  const rk=r=>r==="Excellent"||r==="Good"?"ok":r==="Fair"?"warn":r==="At Risk"?"bad":"";
+  fillRows("relRows","reports",all.map(s=>`<td>${esc(s.name)}</td><td class="r num">${s.onTime}</td><td class="r num">${s.late}</td><td class="r num">${s.missed}</td><td class="r num">${pct(s.rel)}</td><td>${chip(s.rating,rk(s.rating))}</td>`),6,"No members yet");
+}
+$("btnStatement").addEventListener("click",()=>{
+  const g=active(); if(sel.reports<0) return setStatus("reports","Select a member first",true);
+  const s=stats(g,g.members[sel.reports].id);
+  const rows=[["Payout cycle",`${s.cycle} (${s.received?"received":"waiting"})`],
+    ["Payments made",`${s.paidCount} (${s.onTime} on time, ${s.late} late)`],["Missed cycles",s.missed],
+    ["Reliability",`${pct(s.rel)} – ${s.rating}`],["Total paid in",peso(s.paidIn)],["Late fees owed",peso(s.pen)],
+    ["Total received",peso(s.got)],["Net position",`${peso(s.net)} (${s.net>=0?"ahead of the group":"still saving up"})`],["Note",esc(s.note)]];
+  modal({title:s.name,body:`<dl class="kv">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`,ok:"Close",cancel:null});
+});
+
+/* ---------- All groups ---------- */
+function refreshGroups(){
+  sel.groups=book.active;
+  fillRows("groupRows","groups",book.groups.map((g,i)=>`<td>${esc(g.name)}</td><td class="r num">${g.members.length}</td><td class="num dim">${releasedCount(g)}/${totalCycles(g)}</td><td class="r num">${peso(totalCollected(g))}</td><td class="r num">${peso(totalPaidOut(g))}</td><td class="r">${i===book.active?chip("Open","open"):""}</td>`),6,"No groups");
+}
+async function askNewGroup(){
+  const r=await modal({title:"New group",ok:"Create group",body:`<div class="form">
+    <div class="field full"><label for="ngName">Group name</label><input type="text" id="ngName" data-f="name"></div>
+    <div class="field full"><label for="ngAmt">Amount per member (PHP)</label><input type="number" id="ngAmt" data-f="amount" value="1000" min="0" step="50"></div>
+</div>`});
+  if(!r) return "No new group was created.";
+  const name=r.name.trim(); if(!name) return "The group needs a name. Nothing was created.";
+  const amount=parseFloat(r.amount); if(isNaN(amount)) return "The amount must be a number. Nothing was created.";
+  if(amount<0) return "The amount cannot be negative. Nothing was created.";
+  if(book.groups.length>=MAX_GROUPS) return "Cannot hold more than "+MAX_GROUPS+" groups.";
+  book.groups.push(newGroup(name,amount)); book.active=book.groups.length-1; changed();
+  return {created:true,msg:"Created "+name};
+}
+$("btnNewG").addEventListener("click",async()=>{ const r=await askNewGroup(); if(r.created){ refreshBar(); refreshGroups(); setStatus("groups",r.msg); } else setStatus("groups",r,true); });
+$("barNew").addEventListener("click",async()=>{ const r=await askNewGroup(); if(r.created){ showTab("setup"); barMsg(r.msg); } else barMsg(r); });
+$("btnOpenG").addEventListener("click",()=>{
+  if(sel.groups<0) return setStatus("groups","Select a group first",true);
+  if(sel.groups===book.active) return setStatus("groups",active().name+" is already open.");
+  book.active=sel.groups; changed(); refreshBar(); refreshGroups();
+  setStatus("groups","Now working on "+active().name+". The other tabs now show its records.");
+});
+$("btnDelG").addEventListener("click",async()=>{
+  const i=sel.groups; if(i<0) return setStatus("groups","Select a group first",true);
+  if(book.groups.length===1) return setStatus("groups","The last group cannot be deleted.",true);
+  const g=book.groups[i];
+  if(!await modal({title:"Delete group",body:`<p>Delete <b>${esc(g.name)}</b> together with all of its members and records?</p>`,ok:"Delete"})) return setStatus("groups","Cancelled.");
+  book.groups.splice(i,1); if(book.active>i) book.active--; if(book.active>=book.groups.length) book.active=book.groups.length-1;
+  changed(); refreshBar(); refreshGroups(); setStatus("groups","Deleted. Now working on "+active().name+".");
+});
+function saveNow(){ return persist()?"Saved":"Could not save – this browser blocks storage. Use Export in Groups."; }
+$("barSave").addEventListener("click",()=>barMsg(saveNow()));
+$("cboGroups").addEventListener("change",()=>{ book.active=+$("cboGroups").value; changed(); refreshAll(); barMsg("Opened "+active().name); });
+
+/* ---------- sample notice, export / import ---------- */
+$("sampleTag").addEventListener("click",async()=>{
+  if(!await modal({title:"Sample data",body:"<p>You're looking at example groups. Clear them and start with an empty group?</p>",ok:"Start fresh",cancel:"Keep sample"})){ book.sample=false; changed(); refreshBar(); return; }
+  book=defaultBook(); changed(); contribCycle=1; showTab("setup"); barMsg("Started fresh");
+});
+$("btnExport").addEventListener("click",()=>{
+  modal({title:"Export records",wide:true,ok:"Done",cancel:null,
+    body:`<p>Paste into <b>paluwagan_data.txt</b> to open in the desktop app.</p>
+      <textarea id="expText" readonly aria-label="Exported records">${esc(exportText())}</textarea>
+      <div class="actions" style="margin-top:10px"><button class="btn" type="button" id="btnCopy">Copy</button><span class="sub" id="copyMsg"></span></div>`,
+    onOpen:box=>box.querySelector("#btnCopy").addEventListener("click",()=>{
+      const ta=box.querySelector("#expText"), msg=box.querySelector("#copyMsg");
+      const fallback=()=>{ ta.focus(); ta.select(); msg.textContent="Selected – press Ctrl+C"; };
+      try{ navigator.clipboard.writeText(ta.value).then(()=>msg.textContent="Copied.",fallback); }catch(e){ fallback(); }
+    })});
+});
+$("btnImport").addEventListener("click",async()=>{
+  let text="";
+  const r=await modal({title:"Import records",wide:true,ok:"Import",
+    body:`<p>Choose <b>paluwagan_data.txt</b> or paste its contents. This replaces current records.</p>
+      <input type="file" id="impFile" accept=".txt,text/plain" style="margin-bottom:10px;max-width:100%">
+      <textarea id="impText" data-f="text" placeholder="PALUWAGAN-DATA 1&#10;..." aria-label="Records to import"></textarea>`,
+    onOpen:box=>box.querySelector("#impFile").addEventListener("change",e=>{
+      const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ box.querySelector("#impText").value=rd.result; }; rd.readAsText(f);
+    })});
+  if(!r) return; text=r.text||"";
+  try{ book=importText(text); changed(); contribCycle=1; refreshAll(); barMsg("Imported "+book.groups.length+" group(s)"); }
+  catch(e){ barMsg("Could not read the records: "+e.message+"."); }
+});
+
+/* ---------- tabs ---------- */
+const refreshers={setup:refreshSetup,contrib:refreshContrib,payouts:refreshPayouts,order:refreshOrder,reports:refreshReports,groups:refreshGroups};
+function showTab(name){
+  currentTab=name;
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===name?"true":"false"));
+  Object.keys(refreshers).forEach(k=>$("p-"+k).hidden=(k!==name));
+  try{ localStorage.setItem(STORE+"_tab",name); }catch(e){}
+  refreshAll();
+}
+function refreshAll(){
+  refreshBar();
+  refreshers[currentTab]();
+}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>showTab(t.dataset.tab)));
+
+[["setupRows","setup"],["contribRows","contrib"],["payRows","payouts"],["orderRows","order"],["relRows","reports"],["groupRows","groups"]].forEach(([t,k])=>bindTable(t,k));
+
+book=load();
+let startTab="setup"; try{ const t=localStorage.getItem(STORE+"_tab"); if(t&&refreshers[t]) startTab=t; }catch(e){}
+if(book.sample && startTab==="setup") startTab="contrib";
+if(book.sample) contribCycle=4;
+showTab(startTab);
+})();
+</script>
+
+</body>
+</html>
