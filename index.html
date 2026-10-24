@@ -295,6 +295,22 @@ function plusDays(s,n){ const d=parseISO(s); d.setUTCDate(d.getUTCDate()+n); ret
 function plusMonths(s,n){ const d=parseISO(s); const day=d.getUTCDate(); const t=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+n,1));
   const last=new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)).getUTCDate(); t.setUTCDate(Math.min(day,last)); return iso(t); }
 
+/* ---------- Transaction hierarchy (same as the Java engine) ----------
+   Transaction is the superclass: who, which cycle, how much.
+   Contribution and Payout extend it and add only what is theirs. */
+class Transaction {
+  constructor(memberId, cycle, amount){ this.memberId=memberId; this.cycle=cycle; this.amount=amount; }
+}
+class Contribution extends Transaction {
+  constructor(memberId, cycle, amount){ super(memberId, cycle, amount); this.paid=false; this.daysLate=0; this.penalty=0; }
+}
+class Payout extends Transaction {
+  constructor(memberId, cycle, amount, expectedPot){ super(memberId, cycle, amount); this.expectedPot=expectedPot; }
+  get shortfall(){ return Math.max(0, this.expectedPot - this.amount); }
+  get isFullPot(){ return this.shortfall < 0.01; }
+}
+const gotPot = m => m.payout ? m.payout.amount : 0;
+
 /* ---------- model (Paluwagan and its parts) ---------- */
 function newGroup(name, amount){
   return { name, organizer:"Not set", amount, freq:1, start:todayISO(), grace:3, feePerDay:100, maxFee:500, nextId:1, members:[], records:[] };
@@ -311,7 +327,7 @@ const findRec = (g,id,c) => g.records.find(r=>r.memberId===id && r.cycle===c) ||
 const hasPaid = (g,id,c) => { const r=findRec(g,id,c); return !!(r && r.paid); };
 function penalty(g,days){ const ch=days-g.grace; if(ch<=0) return 0; return Math.min(ch*g.feePerDay, g.maxFee); }
 function recordPayment(g,id,c,amount,days){
-  let r=findRec(g,id,c); if(!r){ r={memberId:id,cycle:c,amount,paid:false,daysLate:0,penalty:0}; g.records.push(r); }
+  let r=findRec(g,id,c); if(!r){ r=new Contribution(id,c,amount); g.records.push(r); }
   r.paid=true; r.amount=amount; r.daysLate=days; r.penalty=penalty(g,days);
 }
 function cancelPayment(g,id,c){ const r=findRec(g,id,c); if(r){ r.paid=false; r.daysLate=0; r.penalty=0; } }
@@ -322,12 +338,12 @@ const countPaid = (g,c) => g.members.filter(m=>hasPaid(g,m.id,c)).length;
 const collectedFor = (g,c) => countPaid(g,c)*g.amount;
 const fullPot = g => g.members.length*g.amount;
 const fullyPaid = (g,c) => g.members.length>0 && countPaid(g,c)===g.members.length;
-const isReleased = (g,c) => { const m=receiver(g,c); return !!(m && m.received); };
-const releasedCount = g => g.members.filter(m=>m.received).length;
-const totalPaidOut = g => g.members.filter(m=>m.received).reduce((a,m)=>a+m.amountReceived,0);
+const isReleased = (g,c) => { const m=receiver(g,c); return !!(m && m.payout); };
+const releasedCount = g => g.members.filter(m=>m.payout).length;
+const totalPaidOut = g => g.members.reduce((a,m)=>a+gotPot(m),0);
 function currentCycle(g){ for(let c=1;c<=totalCycles(g);c++) if(!isReleased(g,c)) return c; return 0; }
-function releasePayout(g,c){ const m=receiver(g,c); if(m){ m.received=true; m.amountReceived=collectedFor(g,c); } }
-function cancelPayout(g,c){ const m=receiver(g,c); if(m){ m.received=false; m.amountReceived=0; } }
+function releasePayout(g,c){ const m=receiver(g,c); if(m) m.payout=new Payout(m.id,m.cycle,collectedFor(g,c),fullPot(g)); }
+function cancelPayout(g,c){ const m=receiver(g,c); if(m) m.payout=null; }
 function drawOrder(g){
   if(releasedCount(g)>0) return false;
   const n=g.members.length, order=[...Array(n)].map((_,i)=>i+1);
@@ -335,20 +351,20 @@ function drawOrder(g){
   g.members.forEach((m,i)=>m.cycle=order[i]); return true;
 }
 function moveToLast(g,id){
-  const t=byId(g,id); if(!t||t.received) return false;
+  const t=byId(g,id); if(!t||t.payout) return false;
   const n=g.members.length, old=t.cycle; if(old===n) return true;
   g.members.forEach(m=>{ if(m.cycle>old) m.cycle--; }); t.cycle=n; return true;
 }
-function enroll(g,name){ if(g.members.length>=MAX_MEMBERS) return false; g.members.push({id:g.nextId++,name,cycle:g.members.length+1,received:false,amountReceived:0}); return true; }
+function enroll(g,name){ if(g.members.length>=MAX_MEMBERS) return false; g.members.push({id:g.nextId++,name,cycle:g.members.length+1,payout:null}); return true; }
 function withdraw(g,id){
-  const t=byId(g,id); if(!t||t.received) return false;
+  const t=byId(g,id); if(!t||t.payout) return false;
   const freed=t.cycle; g.members=g.members.filter(m=>m.id!==id);
   g.members.forEach(m=>{ if(m.cycle>freed) m.cycle--; });
   const limit=g.members.length; g.records=g.records.filter(r=>r.memberId!==id && r.cycle<=limit); return true;
 }
 /* RiskAnalyzer + MemberStats */
 function unpaidDue(g,id){ let n=0; for(let c=1;c<=totalCycles(g);c++) if(isDue(g,c)&&!hasPaid(g,id,c)) n++; return n; }
-const exposure = g => g.members.filter(m=>m.received).reduce((a,m)=>a+unpaidDue(g,m.id)*g.amount,0);
+const exposure = g => g.members.filter(m=>m.payout).reduce((a,m)=>a+unpaidDue(g,m.id)*g.amount,0);
 function stats(g,id){
   const m=byId(g,id); if(!m) return null;
   let onTime=0,late=0,paidIn=0,pen=0;
@@ -357,11 +373,12 @@ function stats(g,id){
   const rel = due===0?100:onTime*100/due;
   let rating = due===0?"No data yet":rel>=95?"Excellent":rel>=80?"Good":rel>=60?"Fair":"At Risk";
   let note="OK", level="";
-  if(m.received&&missed>0){ note="HIGH RISK – received pot, owes "+missed+" cycle(s)"; level="high"; }
+  if(m.payout&&missed>0){ note="HIGH RISK – received pot, owes "+missed+" cycle(s)"; level="high"; }
   else if(missed>=2) note="WATCH – "+missed+" missed cycle(s)";
   else if(missed===1) note="1 missed cycle";
   else if(late>0) note=late+" late payment(s)";
-  return {id,name:m.name,cycle:m.cycle,received:m.received,onTime,late,missed,paidCount:onTime+late,paidIn,pen,got:m.amountReceived,rel,rating,note,level,net:m.amountReceived-paidIn};
+  return {id,name:m.name,cycle:m.cycle,received:!!m.payout,onTime,late,missed,paidCount:onTime+late,paidIn,pen,got:gotPot(m),
+    shortfall:m.payout?m.payout.shortfall:0,expectedPot:m.payout?m.payout.expectedPot:0,rel,rating,note,level,net:gotPot(m)-paidIn};
 }
 
 /* ---------- book (GroupList) + storage ---------- */
@@ -381,17 +398,30 @@ function sampleBook(){
   ["Rosa","Mario","Lorna","Jun","Cecil"].forEach(n=>enroll(h,n));
   return {groups:[g,h],active:0,sample:true};
 }
-function load(){ try{ const s=localStorage.getItem(STORE); if(s){ const b=JSON.parse(s); if(b&&Array.isArray(b.groups)&&b.groups.length) return b; } }catch(e){} return sampleBook(); }
+function hydrate(b){
+  b.groups.forEach(g=>{
+    g.members.forEach(m=>{
+      const p=m.payout;
+      if(p) m.payout=new Payout(m.id,p.cycle,p.amount,p.expectedPot);
+      else if(m.received) m.payout=new Payout(m.id,m.cycle,m.amountReceived,m.amountReceived); // saved before Payout existed
+      else m.payout=null;
+      delete m.received; delete m.amountReceived;
+    });
+    g.records=g.records.map(r=>Object.assign(new Contribution(r.memberId,r.cycle,r.amount),{paid:!!r.paid,daysLate:r.daysLate||0,penalty:r.penalty||0}));
+  });
+  return b;
+}
+function load(){ try{ const s=localStorage.getItem(STORE); if(s){ const b=JSON.parse(s); if(b&&Array.isArray(b.groups)&&b.groups.length) return hydrate(b); } }catch(e){} return sampleBook(); }
 function persist(){ try{ localStorage.setItem(STORE,JSON.stringify(book)); return true; }catch(e){ return false; } }
 const active = () => book.groups[book.active];
 
 /* DataStore text format, same as paluwagan_data.txt */
 const dbl = v => Number.isInteger(v)? v+".0" : String(v);
 function exportText(){
-  const L=["PALUWAGAN-DATA 1", String(book.groups.length)];
+  const L=["PALUWAGAN-DATA 2", String(book.groups.length)];
   book.groups.forEach(g=>{
     L.push(g.name,g.organizer,dbl(g.amount),String(g.freq),g.start,String(g.grace),dbl(g.feePerDay),dbl(g.maxFee),String(g.nextId),String(g.members.length));
-    g.members.forEach(m=>L.push(String(m.id),m.name,String(m.cycle),m.received?"1":"0",dbl(m.amountReceived)));
+    g.members.forEach(m=>L.push(String(m.id),m.name,String(m.cycle),m.payout?"1":"0",dbl(gotPot(m)),dbl(m.payout?m.payout.expectedPot:0)));
     L.push(String(g.records.length));
     g.records.forEach(r=>L.push(String(r.memberId),String(r.cycle),dbl(r.amount),r.paid?"1":"0",String(r.daysLate),dbl(r.penalty)));
   });
@@ -402,15 +432,17 @@ function importText(text){
   const next=()=>{ if(i>=L.length) throw new Error("the file ends too early"); return L[i++]; };
   const int=()=>{ const v=parseInt(next().trim(),10); if(isNaN(v)) throw new Error("expected a whole number on line "+i); return v; };
   const num=()=>{ const v=parseFloat(next().trim()); if(isNaN(v)) throw new Error("expected a number on line "+i); return v; };
-  if(!next().startsWith("PALUWAGAN-DATA")) throw new Error("that is not a paluwagan records file");
+  const header=next(); if(!header.startsWith("PALUWAGAN-DATA")) throw new Error("that is not a paluwagan records file");
+  const v2 = header.trim()!=="PALUWAGAN-DATA 1"; // version 2 also stores the full pot of each payout
   const count=int(), groups=[];
   for(let k=0;k<count;k++){
     const g=newGroup(next(),0); g.organizer=next(); g.amount=num(); g.freq=int(); g.start=next().trim();
     if(!parseISO(g.start)) throw new Error("bad start date on line "+i);
     g.grace=int(); g.feePerDay=num(); g.maxFee=num(); const nextId=int();
-    const mc=int(); for(let j=0;j<mc;j++){ const id=int(), name=next(), cycle=int(), rec=next().trim()==="1", amt=num(); g.members.push({id,name,cycle,received:rec,amountReceived:amt}); }
+    const mc=int(); for(let j=0;j<mc;j++){ const id=int(), name=next(), cycle=int(), rec=next().trim()==="1", amt=num(), pot=v2?num():amt;
+      g.members.push({id,name,cycle,payout:rec?new Payout(id,cycle,amt,pot):null}); }
     g.nextId=nextId;
-    const rc=int(); for(let j=0;j<rc;j++){ g.records.push({memberId:int(),cycle:int(),amount:num(),paid:next().trim()==="1",daysLate:int(),penalty:num()}); }
+    const rc=int(); for(let j=0;j<rc;j++){ const r=new Contribution(int(),int(),num()); r.paid=next().trim()==="1"; r.daysLate=int(); r.penalty=num(); g.records.push(r); }
     groups.push(g);
   }
   if(!groups.length) throw new Error("the file holds no groups");
@@ -479,7 +511,7 @@ function refreshSetup(){
   $("tGroup").value=g.name; $("tOrg").value=g.organizer; $("tAmount").value=g.amount; $("tFreq").value=String(g.freq);
   $("tStart").value=g.start; $("tGrace").value=g.grace; $("tFee").value=g.feePerDay; $("tCap").value=g.maxFee;
   const rows=[]; for(let c=1;c<=totalCycles(g);c++){ const m=receiver(g,c); if(!m) continue;
-    rows.push(`<td class="num dim">${c}</td><td>${esc(m.name)}</td><td class="num dim">${fmtDate(dueDate(g,c))}</td><td class="r">${m.received?`<span class="num">${peso(m.amountReceived)}</span>`:chip("Waiting")}</td>`); }
+    rows.push(`<td class="num dim">${c}</td><td>${esc(m.name)}</td><td class="num dim">${fmtDate(dueDate(g,c))}</td><td class="r">${m.payout?`<span class="num">${peso(m.payout.amount)}</span>`:chip("Waiting")}</td>`); }
   sel.setup=-1; fillRows("setupRows","setup",rows,4,"No members yet");
 }
 $("termsForm").addEventListener("submit",e=>{
@@ -572,7 +604,8 @@ $("btnRelease").addEventListener("click",async()=>{
     if(!ok) return setStatus("payouts","Cancelled.");
   }
   releasePayout(g,c); changed(); const m=receiver(g,c); refreshPayouts();
-  setStatus("payouts",`Released ${peso(m.amountReceived)} to ${m.name} for cycle ${c}.`);
+  const p=m.payout;
+  setStatus("payouts",`Released ${peso(p.amount)} to ${m.name} for cycle ${c}.`+(p.isFullPot?"":` That is ${peso(p.shortfall)} short of the full pot of ${peso(p.expectedPot)}.`));
 });
 $("btnUndoPay").addEventListener("click",()=>{
   const g=active(); if(sel.payouts<0) return setStatus("payouts","Select a cycle first",true);
@@ -628,7 +661,7 @@ $("btnStatement").addEventListener("click",()=>{
   const rows=[["Payout cycle",`${s.cycle} (${s.received?"received":"waiting"})`],
     ["Payments made",`${s.paidCount} (${s.onTime} on time, ${s.late} late)`],["Missed cycles",s.missed],
     ["Reliability",`${pct(s.rel)} – ${s.rating}`],["Total paid in",peso(s.paidIn)],["Late fees owed",peso(s.pen)],
-    ["Total received",peso(s.got)],["Net position",`${peso(s.net)} (${s.net>=0?"ahead of the group":"still saving up"})`],["Note",esc(s.note)]];
+    ["Total received",peso(s.got)],...(s.received&&s.shortfall>=0.01?[["Pot shortfall",`${peso(s.shortfall)} (full pot was ${peso(s.expectedPot)})`]]:[]),["Net position",`${peso(s.net)} (${s.net>=0?"ahead of the group":"still saving up"})`],["Note",esc(s.note)]];
   modal({title:s.name,body:`<dl class="kv">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`,ok:"Close",cancel:null});
 });
 
@@ -691,7 +724,7 @@ $("btnImport").addEventListener("click",async()=>{
   const r=await modal({title:"Import records",wide:true,ok:"Import",
     body:`<p>Choose <b>paluwagan_data.txt</b> or paste its contents. This replaces current records.</p>
       <input type="file" id="impFile" accept=".txt,text/plain" style="margin-bottom:10px;max-width:100%">
-      <textarea id="impText" data-f="text" placeholder="PALUWAGAN-DATA 1&#10;..." aria-label="Records to import"></textarea>`,
+      <textarea id="impText" data-f="text" placeholder="PALUWAGAN-DATA 2&#10;..." aria-label="Records to import"></textarea>`,
     onOpen:box=>box.querySelector("#impFile").addEventListener("change",e=>{
       const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ box.querySelector("#impText").value=rd.result; }; rd.readAsText(f);
     })});
